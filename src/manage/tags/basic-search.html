@@ -1,0 +1,100 @@
+<basic-search class="basic-search">
+  <div class="basic-search-wrap">
+    <div each={ search in searchList} if={search.show} class="condition">
+      <rs-text-field data={search} ref={search.field_name} data-name={tableName} showDefalutResult={search.showResult}></rs-text-field>
+    </div>
+    <div class="condition" if={opts.name === 'staff'}>
+      <div data-def={exprFields} ref={exprFields.name} ident={exprFields.name} desc={exprFields.name} data-is="rs-condition-filter" class="bind-filter" name={exprFields.tableName}></div>
+    </div>
+    <div class="condition">
+      <div class="search">
+        <button class="search-button" onclick={doSearch}>查询</button>
+        <button class="search-button" onclick={sendStaffChange}>通知更新</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    import '../sass/basic-search.sass'
+    import '../../tags/rs-text-field/rs-text-field.html'
+    import searchList from '../js/basic_search_def.js'
+    import { clone, getSerachData } from '../../js/utils/utils.js'
+
+    //更新检索结果
+    this.updateSearchList = () => {
+      let self = this
+      this.searchList.forEach(item => {
+        let search = this.refs[item.field_name]
+        if (search) {
+          let datas = getSerachData(item.field_name, null, self)
+          search.rows = datas.rows
+          search.update()
+          search.fuse.list = datas.rows
+        }
+      })
+    }
+
+    //执行查询函数
+    this.doSearch = () => {
+      this.parent.tags['basic-list'] && this.parent.tags['basic-list'].getSearchRows()
+    }
+
+    //是否检索
+    this.isSearch = (tableName, fieldName) => {
+      const names = ['staffs', 'dept', 'select_card', 'vehicles', 'device_power', 'worktype']
+      if (tableName === 'basicSearch' && names.includes(fieldName)) {
+        return true
+      }
+      return false
+    }
+
+    //人员、车辆基本信息隐藏车辆、人员搜索
+    this.hideSearch = () => {
+      if (opts.name === 'device_power') {
+        return [{
+          field_name: 'device_power',
+          field_label: '电源编号',
+          field_type: 'SELECT',
+          field_enableNull: true,
+          show: true,
+          name: 'device_power_id'
+        }]
+      } else {
+        this.exprFields = {
+          name: 'worktype_id',
+          label: '工种',
+          type: 'SELECT',
+          tableName:'worktype'
+        }
+        const name = opts.name === 'staff' ? 'vehicles' : 'staffs'
+        const list = this.initList
+        list.filter(item => {
+          if (item.field_name === name) item.show = false
+        })
+        return list  
+      }  
+    }
+
+    this.sendStaffChange = (evt) => {
+      xbus.trigger('META-UPDATE-DB', {
+        req: {
+          cmd: 'staff_change',
+          data: {
+            op: 'UPDATE',
+            name: 'dat_staff_extend',
+            id: '*',
+            sql: null
+          }
+        }
+      })
+    }
+    
+    this.init = (opts) => {
+      this.initList = clone(searchList)
+      this.searchList = this.hideSearch()
+      this.tableName = 'basicSearch'
+      this.parenTag = this
+    }
+
+    this.init(opts)
+  </script>
+</basic-search>

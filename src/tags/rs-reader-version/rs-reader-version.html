@@ -1,0 +1,123 @@
+<rs-reader-version class="rs-reader-version">
+  <div class="dlg-bg">
+    <div class="dlg-window">
+      <rs-title title="分站版本切换"></rs-title>
+      <div class="reader-version-content">
+        <div class="reader-type">
+          <rs-fieldset  ref="readerMode" data-attribute="readerMode" legend="升级模式" data-lists={readerMode}></rs-fieldset>
+          <rs-fieldset ref="readerVersion" data-attribute="readerVersion" legend="升级版本" data-lists={readerVersion}></rs-fieldset>
+        </div>
+        <div each={ exprField in exprFields} class= { isDisabled ? 'reader-field disabled' : 'reader-field' }>
+          <div data-is="rs-condition-filter" data-def={ exprField } ref={ exprField.name } placeholder={ exprField.placeholder } disabled= { isDisabled } ident={ exprField.name }></div>
+        </div>
+        <div class="reader-version-btn">
+          <button class="btn-sure" onclick={ sendChange }>确定</button>
+          <button class="btn-cancel" onclick={ close }>取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import '../rs-title/tags/rs-title.html'
+    import '../rs-text/rs-fieldset.html'
+    import '../rs-condition-filter/rs-condition-filter.html'
+    import Draggable from '../../js/utils/Draggable.js'
+
+    import './rs-reader-version.sass'
+
+    const READERMODE = [{type_id: 0, name: '全部分站切换'}, {type_id: 1, name: '指定分站切换'}]
+    const READERVERSION = [
+      {version_id: 0, name: '切换V1.1版本'}, 
+      {version_id: 1, name: '切换V1.0版本'},
+    ]
+    
+    this.dohandleItem = (msg) => {
+      if (msg.hasOwnProperty('type_id')) {
+        let readerMode = msg.type_id
+        let rsFieldsets = this.tags['rs-fieldset']
+        this.isDisabled = readerMode === 0 ? true : false
+        this.exprFields = [
+          {
+            name: 'reader_id',
+            label: '升级分站',
+            type: 'SELECT',
+            placeholder: this.areaPlaceholder
+          }
+        ]
+        this.update()
+      }
+    }
+
+    this.on('mount', () => {
+      let dragTarget = this.root.querySelector('.dlg-window')
+      let dragHandle = null
+      Draggable(dragTarget, dragHandle)
+    })
+
+    this.sendChange = () => {
+      let typeId = this.refs['readerMode'] && this.refs['readerMode'].defaultchoose.type_id
+      let versionID = this.refs['readerVersion'] && this.refs['readerVersion'].defaultchoose.version_id
+      let readers = []
+      console.log(typeId, versionID)
+      if (typeId === 0) {
+        xbus.trigger('META-UPDATE-DB', {
+          req: {
+            cmd: 'switch_reader_software',
+            data: {
+              send_to_all: 1,
+              reader_id: '',
+              switch_mode: versionID
+            }
+          }
+        })
+      } else {
+        let readerStore = this.refs['reader_id'] && this.refs['reader_id'].store
+        if (!readerStore) {
+          window.xMessage.open({
+            type: 'error',
+            message: '请选择分站！'
+          })
+          return
+        }
+        readerStore.forEach(item => {
+          let readerID = item.reader_id
+          readers.push(readerID)
+        })
+        
+        xbus.trigger('META-UPDATE-DB', {
+          req: {
+            cmd: 'switch_reader_software',
+            data: {
+              send_to_all: 0,
+              reader_id: readers.join(','),
+              switch_mode: versionID
+            }
+          }
+        })
+      }
+      this.close()
+    }
+
+
+    this.close = () => {
+      this.unmount(true)
+    }
+
+    this.init = (opts) => {
+      this.exprFields = [
+        {
+          name: 'reader_id',
+          label: '升级分站',
+          type: 'SELECT',
+          placeholder: '选择升级分站'
+        }
+      ]
+      this.readerMode = READERMODE
+      this.readerVersion = READERVERSION
+      this.isDisabled = true
+    }
+
+    this.init(opts)
+  </script>
+</rs-reader-version>
